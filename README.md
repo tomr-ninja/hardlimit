@@ -70,6 +70,7 @@ func main() {
     handler := http.HandlerFunc(myHandler)
     middleware := hardlimit.Middleware(
         100, time.Minute,
+        // see middleware.go for more options
         WithGetOrCreateFunc(func(r *http.Request) *hardlimit.Limiter {
             ip := r.Header.Get("X-Real-Ip") // or r.RemoteAddr, or some token, whatever you want, you have the request
             limiter, ok := limiters[ip]
@@ -81,5 +82,6 @@ func main() {
         }),
     )
     mux.Handle("/", middleware(handler))
+    http.ListenAndServe(":3000", mux)
 }
 ```
