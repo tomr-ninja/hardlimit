@@ -51,7 +51,8 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
     mux := http.NewServeMux()
     handler := http.HandlerFunc(myHandler)
-    mux.Handle("/", hardlimit.Middleware(100, time.Minute)(handler))	
+    mux.Handle("/", hardlimit.Middleware(100, time.Minute)(handler))
+    http.ListenAndServe(":3000", mux)
 }
 ```
 
@@ -60,7 +61,7 @@ func main() {
 ```go
 // it's just a dumb example, don't do this in production
 // use a sync.Map or something
-limiters := map[string]*hardlimit.Limiter{
+var limiters = map[string]*hardlimit.Limiter{
     "42.42.42.42": hardlimit.New(100, time.Minute),
     "42.42.42.43": hardlimit.New(100, time.Minute),
 }
