@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const defaultRequestsRemainingHeader = "X-Requests-Remaining"
+const DefaultRequestsRemainingHeader = "X-Requests-Remaining"
 
 type MiddlewareOption func(*middlewareOptions)
 
@@ -25,7 +25,7 @@ func (o *middlewareOptions) apply(limit uint64, period time.Duration, opts []Mid
 		o.LimitExceededErrorCode = http.StatusTooManyRequests
 	}
 	if o.RequestsRemainingHeader == "" {
-		o.RequestsRemainingHeader = defaultRequestsRemainingHeader
+		o.RequestsRemainingHeader = DefaultRequestsRemainingHeader
 	}
 	if o.GetOrCreateFunc == nil {
 		commonLimiter := New(limit, period)
@@ -67,6 +67,7 @@ func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) fu
 				return
 			}
 
+			limiter.Inc()
 			next.ServeHTTP(w, r)
 
 			if options.RequestsRemainingHeader != "" {

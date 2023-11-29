@@ -2,6 +2,7 @@ package hardlimit_test
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ func TestLimiter(t *testing.T) {
 
 	for i := 0; i < 9; i++ {
 		limiter.Inc()
-
 		if !limiter.Available() {
 			t.Errorf("expected to be available")
 		}
@@ -70,6 +70,12 @@ func TestLimiter_Wait(t *testing.T) {
 	limiter := hardlimit.New(limit, period)
 
 	for i := 0; i < 10; i++ {
+		start := time.Now()
+		limiter.Wait()
+		elapsed := time.Since(start)
+		if elapsed >= period {
+			t.Errorf("expected to wait at most %v, waited %v", period, elapsed)
+		}
 		limiter.Inc()
 	}
 
@@ -102,4 +108,30 @@ func TestInvalidInit(t *testing.T) {
 
 		hardlimit.New(0, time.Millisecond)
 	})
+}
+
+func TestParallel(t *testing.T) {
+	limit := uint64(10)
+	period := time.Millisecond
+	limiter := hardlimit.New(limit, period)
+	counter := atomic.Uint64{}
+
+	for i := uint64(0); i < limit*2; i++ { // twice the limit
+		go func() {
+			_, _ = limiter.Exec(func() error {
+				counter.Add(1)
+
+				return nil
+			})
+		}()
+	}
+
+	time.Sleep(period)
+
+	if !limiter.Available() {
+		t.Errorf("expected to be available")
+	}
+	if counter.Load() != limit {
+		t.Errorf("expected %d, got %d", limit, counter.Load())
+	}
 }
