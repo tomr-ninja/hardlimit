@@ -64,6 +64,24 @@ func TestLimiter_Exec(t *testing.T) {
 	}
 }
 
+func TestLimiter_Wait(t *testing.T) {
+	limit := uint64(10)
+	period := time.Millisecond
+	limiter := hardlimit.New(limit, period)
+
+	for i := 0; i < 10; i++ {
+		limiter.Inc()
+	}
+
+	start := time.Now()
+	limiter.Wait()
+	elapsed := time.Since(start)
+
+	if elapsed < period {
+		t.Errorf("expected to wait at least %v, waited %v", period, elapsed)
+	}
+}
+
 func TestInvalidInit(t *testing.T) {
 	t.Run("negative period", func(t *testing.T) {
 		defer func() {
