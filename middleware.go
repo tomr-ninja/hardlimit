@@ -16,9 +16,10 @@ type middlewareOptions struct {
 	GetOrCreateFunc         func(r *http.Request) *Limiter
 }
 
-func (o *middlewareOptions) apply(limit uint64, period time.Duration, opts []MiddlewareOption) {
+func newOptions(limit uint64, period time.Duration, opts []MiddlewareOption) middlewareOptions {
+	o := middlewareOptions{}
 	for _, opt := range opts {
-		opt(o)
+		opt(&o)
 	}
 
 	if o.LimitExceededErrorCode == 0 {
@@ -33,11 +34,12 @@ func (o *middlewareOptions) apply(limit uint64, period time.Duration, opts []Mid
 			return commonLimiter
 		}
 	}
+
+	return o
 }
 
 func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) func(http.Handler) http.Handler {
-	options := new(middlewareOptions)
-	options.apply(limit, period, opts)
+	options := newOptions(limit, period, opts)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
