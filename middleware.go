@@ -35,24 +35,6 @@ func (o *middlewareOptions) apply(limit uint64, period time.Duration, opts []Mid
 	}
 }
 
-var (
-	WithCustomRequestsRemainingHeader = func(header string) MiddlewareOption {
-		return func(o *middlewareOptions) {
-			o.RequestsRemainingHeader = header
-		}
-	}
-	WithCustomLimitExceededErrorCode = func(code int) MiddlewareOption {
-		return func(o *middlewareOptions) {
-			o.LimitExceededErrorCode = code
-		}
-	}
-	WithGetOrCreateFunc = func(f func(r *http.Request) *Limiter) MiddlewareOption {
-		return func(o *middlewareOptions) {
-			o.GetOrCreateFunc = f
-		}
-	}
-)
-
 func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	options := new(middlewareOptions)
 	options.apply(limit, period, opts)
@@ -81,5 +63,23 @@ func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) fu
 				w.Header().Set(options.RequestsRemainingHeader, strconv.FormatUint(requestsRemaining, 10))
 			}
 		})
+	}
+}
+
+func WithCustomRequestsRemainingHeader(header string) MiddlewareOption {
+	return func(o *middlewareOptions) {
+		o.RequestsRemainingHeader = header
+	}
+}
+
+func WithCustomLimitExceededErrorCode(code int) MiddlewareOption {
+	return func(o *middlewareOptions) {
+		o.LimitExceededErrorCode = code
+	}
+}
+
+func WithGetOrCreateFunc(f func(r *http.Request) *Limiter) MiddlewareOption {
+	return func(o *middlewareOptions) {
+		o.GetOrCreateFunc = f
 	}
 }
