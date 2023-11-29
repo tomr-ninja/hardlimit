@@ -1,15 +1,17 @@
-package main
+package hardlimit_test
 
 import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/tomr-ninja/hardlimit"
 )
 
 func TestLimiter(t *testing.T) {
 	limit := uint64(10)
 	period := time.Millisecond
-	limiter := New(limit, period)
+	limiter := hardlimit.New(limit, period)
 
 	for i := 0; i < 9; i++ {
 		limiter.Inc()
@@ -34,7 +36,7 @@ func TestLimiter(t *testing.T) {
 func TestLimiter_Exec(t *testing.T) {
 	limit := uint64(10)
 	period := time.Millisecond
-	limiter := New(limit, period)
+	limiter := hardlimit.New(limit, period)
 
 	for i := 0; i < 10; i++ {
 		c, err := limiter.Exec(func() error {
@@ -51,8 +53,8 @@ func TestLimiter_Exec(t *testing.T) {
 	c, err := limiter.Exec(func() error {
 		return nil
 	})
-	if !errors.Is(err, ErrLimitExceeded) {
-		t.Errorf("expected %v, got %v", ErrLimitExceeded, err)
+	if !errors.Is(err, hardlimit.ErrLimitExceeded) {
+		t.Errorf("expected %v, got %v", hardlimit.ErrLimitExceeded, err)
 	}
 	if c != limit {
 		t.Errorf("expected %d, got %d", limit, c)
@@ -70,7 +72,7 @@ func TestInvalidInit(t *testing.T) {
 			}
 		}()
 
-		New(10, -time.Millisecond)
+		hardlimit.New(10, -time.Millisecond)
 	})
 
 	t.Run("zero limit", func(t *testing.T) {
@@ -80,6 +82,6 @@ func TestInvalidInit(t *testing.T) {
 			}
 		}()
 
-		New(0, time.Millisecond)
+		hardlimit.New(0, time.Millisecond)
 	})
 }
