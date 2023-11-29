@@ -37,6 +37,6 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 fucn main() {
     mux := http.NewServeMux()
     handler := http.HandlerFunc(myHandler)
-    mux.Handle("/", hardlimit.NewMiddleware(100, time.Minute)(handler))	
+    mux.Handle("/", hardlimit.Middleware(100, time.Minute)(handler))	
 }
 ```
