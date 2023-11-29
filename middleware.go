@@ -13,9 +13,10 @@ type MiddlewareOption func(*middlewareOptions)
 type middlewareOptions struct {
 	RequestsRemainingHeader string
 	LimitExceededErrorCode  int
+	GetOrCreateFunc         func(r *http.Request) *Limiter
 }
 
-func (o *middlewareOptions) apply(opts []MiddlewareOption) {
+func (o *middlewareOptions) apply(limit uint64, period time.Duration, opts []MiddlewareOption) {
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -25,6 +26,12 @@ func (o *middlewareOptions) apply(opts []MiddlewareOption) {
 	}
 	if o.RequestsRemainingHeader == "" {
 		o.RequestsRemainingHeader = defaultRequestsRemainingHeader
+	}
+	if o.GetOrCreateFunc == nil {
+		commonLimiter := New(limit, period)
+		o.GetOrCreateFunc = func(_ *http.Request) *Limiter {
+			return commonLimiter
+		}
 	}
 }
 
@@ -39,16 +46,21 @@ var (
 			o.LimitExceededErrorCode = code
 		}
 	}
+	WithGetOrCreateFunc = func(f func(r *http.Request) *Limiter) MiddlewareOption {
+		return func(o *middlewareOptions) {
+			o.GetOrCreateFunc = f
+		}
+	}
 )
 
 func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) func(http.Handler) http.Handler {
-	limiter := New(limit, period)
-
 	options := new(middlewareOptions)
-	options.apply(opts)
+	options.apply(limit, period, opts)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			limiter := options.GetOrCreateFunc(r)
+
 			if !limiter.Available() {
 				http.Error(w, ErrLimitExceeded.Error(), options.LimitExceededErrorCode)
 
@@ -58,7 +70,14 @@ func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) fu
 			next.ServeHTTP(w, r)
 
 			if options.RequestsRemainingHeader != "" {
-				w.Header().Set(options.RequestsRemainingHeader, strconv.FormatUint(limit-limiter.Count(), 10))
+				requestsRemaining := limit
+				if c := limiter.Count(); c > limit { // possible in case of race condition
+					requestsRemaining = 0
+				} else {
+					requestsRemaining = limit - c
+				}
+
+				w.Header().Set(options.RequestsRemainingHeader, strconv.FormatUint(requestsRemaining, 10))
 			}
 		})
 	}
