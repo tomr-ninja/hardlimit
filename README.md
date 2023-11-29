@@ -3,7 +3,7 @@ Simple rate limiter.
 ## Usage
 
 > [!TIP]
-> I bet you need a HTTP middleware, so you can just scroll down to [this](#http-middleware).
+> If you came here for an HTTP middleware, just scroll down to [this](#http-middleware).
 
 ### Basic usage
 
