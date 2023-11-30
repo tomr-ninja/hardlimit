@@ -5,6 +5,9 @@ Simple rate limiter.
 > [!TIP]
 > If you came here for an HTTP middleware, just scroll down to [this](#http-middleware).
 
+> [!TIP]
+> Rate limiter != [circuit breaker](https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern). If you need a circuit breaker, there are other libriaries, e.g. [gobreaker](https://github.com/sony/gobreaker).
+
 ### Basic usage
 
 ```go
@@ -22,11 +25,13 @@ limiter.Inc()
 You can also wait for the next available slot:
 
 ```go
-for !limiter.Available() { // or if; may not worth it to simulate locks really
+for !limiter.Available() { // or 'if'; keep in mind that there are no locks
     limiter.Wait()
 }
 job.Do()
 ```
+
+`Wait()` is relatively bad for performance, so don't use it if you are not sure you need it.
 
 ### Using `Exec()` wrapper
 
@@ -50,8 +55,9 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
     mux := http.NewServeMux()
+    rateLimiter := hardlimit.Middleware(100, time.Minute)
     handler := http.HandlerFunc(myHandler)
-    mux.Handle("/", hardlimit.Middleware(100, time.Minute)(handler))
+    mux.Handle("/", rateLimiter(handler))
     http.ListenAndServe(":3000", mux)
 }
 ```
@@ -59,11 +65,19 @@ func main() {
 ### Advanced HTTP middleware
 
 ```go
-// it's just a dumb example, don't do this in production
+// it's just an oversimplified example, don't do this in production
 // use a sync.Map or something
 var limiters = map[string]*hardlimit.Limiter{
     "42.42.42.42": hardlimit.New(100, time.Minute),
     "42.42.42.43": hardlimit.New(100, time.Minute),
+}
+
+func getOrCreateLimiter(r *http.Request) *hardlimit.Limiter {
+    ip := r.Header.Get("X-Real-Ip") // or r.RemoteAddr, or some token, whatever you want, you have the request
+    limiter, ok := limiters[ip]
+    if !ok { ... } // create new limiter and store it
+
+    return limiter	
 }
 
 func main() {
@@ -71,16 +85,7 @@ func main() {
     handler := http.HandlerFunc(myHandler)
     middleware := hardlimit.Middleware(
         100, time.Minute,
-        // see middleware.go for more options
-        WithGetOrCreateFunc(func(r *http.Request) *hardlimit.Limiter {
-            ip := r.Header.Get("X-Real-Ip") // or r.RemoteAddr, or some token, whatever you want, you have the request
-            limiter, ok := limiters[ip]
-            if !ok {
-                // create new limiter and store it
-                ...
-            }
-            return limiter
-        }),
+        WithGetOrCreateFunc(getOrCreateLimiter), // see middleware.go for more options
     )
     mux.Handle("/", middleware(handler))
     http.ListenAndServe(":3000", mux)
