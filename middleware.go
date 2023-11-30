@@ -31,6 +31,7 @@ func newOptions(opts []MiddlewareOption) middlewareOptions {
 	return o
 }
 
+// Middleware - construct a stdlib-compatible middleware with a rate limiter.
 func Middleware(limiterForRequest func(r *http.Request) *Limiter, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	options := newOptions(opts)
 
@@ -60,11 +61,12 @@ func Middleware(limiterForRequest func(r *http.Request) *Limiter, opts ...Middle
 	}
 }
 
+// SimpleMiddleware - simplified version of Middleware with static (not request-wise) limiter.
 func SimpleMiddleware(limit uint64, period time.Duration, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	return Middleware(StaticLimiter(New(limit, period)), opts...)
 }
 
-// StaticLimiter is a simplest limiter getter to configure a middleware.
+// StaticLimiter is a simplest limiter getter to configure a middleware. It returns the same limiter for every request.
 func StaticLimiter(l *Limiter) func(r *http.Request) *Limiter {
 	return func(_ *http.Request) *Limiter {
 		return l
