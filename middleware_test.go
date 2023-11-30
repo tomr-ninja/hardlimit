@@ -11,6 +11,15 @@ import (
 )
 
 func TestMiddleware(t *testing.T) {
+	createHandler := func(limit uint64, period time.Duration, mwOptions ...hardlimit.MiddlewareOption) http.Handler {
+		middleware := hardlimit.SimpleMiddleware(limit, period, mwOptions...)
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		return middleware(handler)
+	}
+
 	t.Run("default options", func(t *testing.T) {
 		limit := uint64(10)
 		period := 10 * time.Millisecond
@@ -78,13 +87,4 @@ func TestMiddleware(t *testing.T) {
 			t.Errorf("expected %d, got %d", customErrorCode, rec.Code)
 		}
 	})
-}
-
-func createHandler(limit uint64, period time.Duration, mwOptions ...hardlimit.MiddlewareOption) http.Handler {
-	middleware := hardlimit.SimpleMiddleware(limit, period, mwOptions...)
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	return middleware(handler)
 }
