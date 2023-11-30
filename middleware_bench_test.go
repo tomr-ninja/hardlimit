@@ -8,10 +8,12 @@ import (
 	"github.com/tomr-ninja/hardlimit"
 )
 
-func BenchmarkMiddleware(b *testing.B) {
+func BenchmarkMiddlewareParallel(b *testing.B) {
 	createHandler := func(withMiddleware bool) http.Handler {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("OK"))
 		})
 
 		if !withMiddleware {
@@ -26,11 +28,14 @@ func BenchmarkMiddleware(b *testing.B) {
 	benchServer := func(b *testing.B, server http.Handler) {
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
-			rec := httptest.NewRecorder()
-
-			server.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
-		}
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				server.ServeHTTP(
+					httptest.NewRecorder(),
+					httptest.NewRequest(http.MethodGet, "/", nil),
+				)
+			}
+		})
 	}
 
 	b.Run("no middleware", func(b *testing.B) {

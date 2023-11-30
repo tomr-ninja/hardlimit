@@ -88,3 +88,27 @@ func main() {
     http.ListenAndServe(":3000", mux)
 }
 ```
+
+## Benchmarks
+
+```
+goos: linux
+goarch: amd64
+pkg: github.com/tomr-ninja/hardlimit
+cpu: AMD Ryzen 5 5600H with Radeon Graphics         
+BenchmarkLimiter
+BenchmarkLimiter/no_limiter
+BenchmarkLimiter/no_limiter-12    	291471141	         4.099 ns/op
+BenchmarkLimiter/with_limiter
+BenchmarkLimiter/with_limiter-12  	208200771	         5.811 ns/op
+BenchmarkLimiterParallel
+BenchmarkLimiterParallel/no_limiter
+BenchmarkLimiterParallel/no_limiter-12         	44305459	        27.16 ns/op
+BenchmarkLimiterParallel/with_limiter
+BenchmarkLimiterParallel/with_limiter-12       	31016211	        39.02 ns/op
+BenchmarkMiddlewareParallel
+BenchmarkMiddlewareParallel/no_middleware
+BenchmarkMiddlewareParallel/no_middleware-12   	 1202026	      1006 ns/op
+BenchmarkMiddlewareParallel/with_middleware
+BenchmarkMiddlewareParallel/with_middleware-12 	 1000000	      1064 ns/op
+```
