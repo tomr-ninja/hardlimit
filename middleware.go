@@ -13,10 +13,9 @@ type MiddlewareOption func(*middlewareOptions)
 type middlewareOptions struct {
 	RequestsRemainingHeader string
 	LimitExceededErrorCode  int
-	GetOrCreateFunc         func(r *http.Request) *Limiter
 }
 
-func newOptions(limit uint64, period time.Duration, opts []MiddlewareOption) middlewareOptions {
+func newOptions(opts []MiddlewareOption) middlewareOptions {
 	o := middlewareOptions{}
 	for _, opt := range opts {
 		opt(&o)
@@ -28,22 +27,16 @@ func newOptions(limit uint64, period time.Duration, opts []MiddlewareOption) mid
 	if o.RequestsRemainingHeader == "" {
 		o.RequestsRemainingHeader = DefaultRequestsRemainingHeader
 	}
-	if o.GetOrCreateFunc == nil {
-		commonLimiter := New(limit, period)
-		o.GetOrCreateFunc = func(_ *http.Request) *Limiter {
-			return commonLimiter
-		}
-	}
 
 	return o
 }
 
-func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) func(http.Handler) http.Handler {
-	options := newOptions(limit, period, opts)
+func Middleware(limiterForRequest func(r *http.Request) *Limiter, opts ...MiddlewareOption) func(http.Handler) http.Handler {
+	options := newOptions(opts)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			limiter := options.GetOrCreateFunc(r)
+			limiter := limiterForRequest(r)
 
 			if !limiter.Available() {
 				http.Error(w, ErrLimitExceeded.Error(), options.LimitExceededErrorCode)
@@ -55,10 +48,9 @@ func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) fu
 			next.ServeHTTP(w, r)
 
 			if options.RequestsRemainingHeader != "" {
-				requestsRemaining := limit
-				if c := limiter.Count(); c > limit { // possible in case of race condition
-					requestsRemaining = 0
-				} else {
+				limit := limiter.Limit()
+				requestsRemaining := uint64(0)
+				if c := limiter.Count(); c <= limit { // c > limit is possible in case of race condition
 					requestsRemaining = limit - c
 				}
 
@@ -68,20 +60,27 @@ func Middleware(limit uint64, period time.Duration, opts ...MiddlewareOption) fu
 	}
 }
 
-func WithCustomRequestsRemainingHeader(header string) MiddlewareOption {
+func SimpleMiddleware(limit uint64, period time.Duration, opts ...MiddlewareOption) func(http.Handler) http.Handler {
+	return Middleware(StaticLimiter(New(limit, period)), opts...)
+}
+
+// StaticLimiter is a simplest limiter getter to configure a middleware.
+func StaticLimiter(l *Limiter) func(r *http.Request) *Limiter {
+	return func(_ *http.Request) *Limiter {
+		return l
+	}
+}
+
+// WithRequestsRemainingHeader - middleware option to set a custom header name for requests remaining.
+func WithRequestsRemainingHeader(header string) MiddlewareOption {
 	return func(o *middlewareOptions) {
 		o.RequestsRemainingHeader = header
 	}
 }
 
-func WithCustomLimitExceededErrorCode(code int) MiddlewareOption {
+// WithLimitExceededErrorCode - middleware option to set a custom error code for limit exceeded error.
+func WithLimitExceededErrorCode(code int) MiddlewareOption {
 	return func(o *middlewareOptions) {
 		o.LimitExceededErrorCode = code
-	}
-}
-
-func WithGetOrCreateFunc(f func(r *http.Request) *Limiter) MiddlewareOption {
-	return func(o *middlewareOptions) {
-		o.GetOrCreateFunc = f
 	}
 }

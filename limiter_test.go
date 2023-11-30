@@ -112,7 +112,7 @@ func TestInvalidInit(t *testing.T) {
 
 func TestParallel(t *testing.T) {
 	limit := uint64(10)
-	period := time.Millisecond
+	period := 100 * time.Millisecond
 	limiter := hardlimit.New(limit, period)
 	counter := atomic.Uint64{}
 

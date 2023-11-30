@@ -55,7 +55,7 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
     mux := http.NewServeMux()
-    rateLimiter := hardlimit.Middleware(100, time.Minute)
+    rateLimiter := hardlimit.SimpleMiddleware(100, time.Minute)
     handler := http.HandlerFunc(myHandler)
     mux.Handle("/", rateLimiter(handler))
     http.ListenAndServe(":3000", mux)
@@ -83,10 +83,7 @@ func getOrCreateLimiter(r *http.Request) *hardlimit.Limiter {
 func main() {
     mux := http.NewServeMux()
     handler := http.HandlerFunc(myHandler)
-    middleware := hardlimit.Middleware(
-        100, time.Minute,
-        WithGetOrCreateFunc(getOrCreateLimiter), // see middleware.go for more options
-    )
+    middleware := hardlimit.Middleware(getOrCreateLimiter)
     mux.Handle("/", middleware(handler))
     http.ListenAndServe(":3000", mux)
 }

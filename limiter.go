@@ -46,6 +46,10 @@ func New(limit uint64, period time.Duration) *Limiter {
 	return limiter
 }
 
+func (l *Limiter) Limit() uint64 {
+	return l.limit
+}
+
 func (l *Limiter) Exec(cb func() error) (uint64, error) {
 	if !l.Available() {
 		return l.Count(), ErrLimitExceeded
